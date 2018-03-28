@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+
+<!--
+
+/**
+ * Back end utility that detects and boards IBM w3id Federation Partner jobs provisioned 
+ * by the SSO Self-Service Provisioner utility.
+ * 
+ * This Java program relies upon script running on the underlying OS this services is running on.
+ * 
+ * @author rkhanna@us.ibm.com
+ * 
+ * Change history:
+ * --------------------------------------------------------------------------------------------------
+ * | VERSION	| DATE			|	CHANGE DESCRIPTION												|
+ * --------------------------------------------------------------------------------------------------
+ * | 0.1		| 12/06/2016	|	Initial version with Staging and Dev jobs detection and boarding|
+ * --------------------------------------------------------------------------------------------------
+ * | 0.2		| 12/09/2016	|	Supporting simulated production jobs detection and boarding		|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.0		| 12/16/2016	|	Supporting production jobs detection and boarding; baselined	|
+ * |			|				|	release.														|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.0.1		| 12/23/2016	|	Added crontab schedule check for boarding jobs in non-Prod 		|
+ * |			|				|	environments.													|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.0.2		| 12/24/2016	|	Fixed issue that disabled prod jobs detection.			 		|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.0.3		| 02/01/2017	|	Added ability to reload properties file via REST API, and  		|
+ * |			|				|	ability to log out the user name from ISAM in the HTTP request 	|
+ * |			|				|	header.															|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.1.0		| 02/01/2017	|	Added logs download support for WebSEAL Reverse Proxy logs and 	|
+ * |			|				|	ISAM w3id junction management.									|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.1.1		| 02/06/2017	|	Updated logic for ISAM files downloading to use the script's  	|
+ * |			|				|	echo message to return back in JSON format.						|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.1.2		| 02/07/2017	|	Corrected debug logging of logs manifest file properties.		|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.2.0		| 02/14/2017	|	Added: 															|
+ * |			|				|	-- time-based files download function							|
+ * |			|				|	-- refactored getInfraLogs Servlet and underyling processing 	|
+ * |			|				|	-- updated getListingIsamLogs Servlet and underyling processing	|
+ * |			|				|	-- added Audit logging to log user name and servlet invoked		|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.2.1		| 02/17/2017	|	Added functions to support notification of retrieve log files	|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.2.2		| 02/24/2017	|	Download key is now generated, versus using HTTP session ID 	|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.2.3		| 03/13/2017	|	Added ability to reload logger after changing Log4J 2 XML; 	 	|
+ * |			|				|	added rolling file appender to log4j2.xml 						|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.2.4		| 03/15/2017	|	Identified and fixed root issue that prevented date-range to be	|
+ * |			|				|	applied to all select log files 								|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.2.5		| 03/16/2017	|	Added ability to search for text within logs to be fetched		|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.2.6		| 03/20/2017	|	Fixed an issue related to searching logs without sending date/s	|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.3.0		| 04/07/2017	|	Added OIDC Token offboarding function							|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.3.1		| 04/10/2017	|	Modified CliOS interface with instantiation of CliLinux class	|
+ * |			|				|	to deal with some loss of reference when boarding w3id partner 	|
+ * |			|				|	jobs (see IMW-1622) 											|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.4.0		| 04/12/2017	|	Refactored CliLinux into CliUtil to become a static command-	|
+ * |			|				|	line processor singleton; also added device fingerprint lookup 	|
+ * |			|				|	REST API, which includes ability to zip up the results			|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.4.1		| 04/13/2017	|	Added a 'band-aid' to the process execution to simply abort 	|
+ * |			|				|	after a timeout is reached 										|
+ * |			|				|	REST API, which includes ability to zip up the results			|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.4.2		| 04/14/2017	|	Fixed an issue that prevents download Key to be returned when  	|
+ * |			|				|	ISAM Hosts are specified in the download logs request			|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.4.3		| 04/18/2017	|	REST Service for getIfnraLogs now returns JSONArray or zip file |
+ * --------------------------------------------------------------------------------------------------
+ * | 1.4.4		| 04/20/2017	|	Fixed issue that truncated device fingprints results			|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.4.5		| 05/01/2017	|	Refactored getLogs and searchLogs methods to be able to add 	|
+ * |			|				|	ISAM Federation logs fetch/search requests (which has also 		|
+ * |			|				|	added); added ability to return last partner boarding status	|
+ * |			|				|	info; also refactored getLogs use the ambiguous hosts with 		|
+ * |			|				|	ordinal (e.g., host1, host2, ... , host X, where is X is the 	|
+ * |			|				|	final instance number in the list / array); added logic to 		|
+ * |			|				|	write out audit info into a separate file not using log4j 		|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.4.6		| 05/01/2017	|	Added new line printing to audit log file not using log4j		|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.4.7		| 05/01/2017	|	Fixed an issue that caused a problem returning last date/time	|
+ * |			|				|	for previous w3id partner boarding status 						|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.4.8		| 05/02/2017	|	Adjusted audit logging; added simple date formatting to 		|
+ * |			|				|	previous w3id partner boarding status 							|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.4.9		| 05/02/2017	|	Adjusted content type in HTTP response for 	previous w3id 		|
+ * |			|				|	partner boarding status; and fixed incorrect date formatting	|
+ * |			|				|	by defining property to be used in all contexts					|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.4.10		| 05/04/2017	|	Refactored back end functions out of shared Partner Jobs 		| 
+ * |			|				|	controls to separate out previous w3id partner boarding status	|
+ * |			|				|	retrieval; also fixed an issue that prevented email addresses 	|
+ * |			|				|	from being written to notification.mf on when specifying one or |
+ * |			|				|	hosts 															|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.4.11		| 05/08/2017	|	Enhanced previous w3id partner boarding status to include 		|
+ * |			|				|	boarding status result, if found (ref IMW-1798)					|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.5.0		| 06/06/2017	|	Changed logs fetch requests processing (ref IMW-1913), which 	|
+ * |			|				|	requires 3 new property key-value pairs							|
+ * --------------------------------------------------------------------------------------------------
+ * | 1.6.0		| 06/29/2017	|	Added F5 Cookie Decoder function								|
+ * --------------------------------------------------------------------------------------------------
+ */ 
+ -->
+
+<html>
+<head>
+<meta charset="UTF-8">
+<title>IBM w3id F/SSO Management Utility Info</title>
+</head>
+<body>
+	<h1>w3id F/SSO REST API</h1>
+	The following are REST API built to simplify w3id backend processes:
+	<ul>
+		<li><a href="checkPendingJobs">Check for Pending Jobs</a> - this REST API checks for SAML and OIDC jobs generated by the IBM w3id SSO Self-Service Provisioner<br /><br />
+			<p>The REST API URI is https://&lt;this host:port&gt;/w3id-svc/checkPendingJobs?env=&lt;Test|Staging|Prod&gt;</p>
+			<p>For example <a href="https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/checkPendingJobs?env=Prod">https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/checkPendingJobs?env=Prod</a></p>
+			<p>Required parameters:<br>
+			<ul>
+			  <li>'env' values can be 'dev' or 'staging' or 'prod'</li>
+			</ul>
+			</p>
+		</li>
+		<li><a href="getIsamLogs">Download Logs</a> - this REST API can initiate log files downloading, or return a ZIP file containing log files requested<br /><br />
+			<p>To initiate log file fetching, the REST API URI is https://&lt;this host:port&gt;getIsamLogs?env=&lt;Test|Staging|Prod&gt;&logs=&lt;list of log files or 1st 3 characters (comma separated)&gt;&filter=&lt;all|latest&gt;</p>
+			<p>Required parameters:<br>
+			<ul>
+				  <li>'env' values can be 'dev' or 'staging' or 'prod'</li>
+			</ul>
+			<p>Optional parameters:<br>
+			<ul>
+				  <li>'logs' used with 'filter' values can be first 3 letters of the WebSEAL log file, such as 'req', 'msg, etc</li>
+				  <ul>
+					  <li>'host' used with 'logs', values should follow this format -> https://&lt;isam-host&gt;:&lt;port&gt;, where 'isam-host' may be an ambiguous host ordinal (e.g., host1 or host1,host3) or fully qualified (including the domain)</li>
+					  <li>'filter' used with 'logs', values can be 'all' or 'latest' (if none are provided, list of log file names is assumed)</li>
+					  <li>'timeframe' used with 'logs' (but not with 'filter'), values must follow format YYYYMMDD-YYYYMMDD (i.e., from date - to date)</li>
+					  <ul>
+						  <li>'search' used with 'timeframe', values should be enclosed in pair of double-quotes () -> https://&lt;isam-host&gt;:&lt;port&gt;, where 'isam-host' is fully qualified (including the domain)</li>
+					  </ul>
+				  </ul>
+				  <li>'key' value is the key to retrieved downloaded WebSEAL log files, upon download completion</li>
+			</ul>
+			<p>Examples</p>
+			<ul>
+				<li>Invoking latest WebSEAL and ISAM Application Logs from all hosts</li>
+				<ul>
+	  				<li><a href="https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/getInfraLogs?env=Test&logs=req,mes&filter=latest">https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/getInfraLogs?env=Test&logs=req,mes&filter=latest</a></li>
+	  			</ul>
+			</ul>
+			<br />
+			<ul>
+				<li>Invoking latest WebSEAL from specified hosts using an ordinal</li>
+				<ul>
+					<li><a href="https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/getInfraLogs?env=Test&logs=req&filter=latest&host=host2,host3">https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/getInfraLogs?env=Test&logs=req&filter=latest&host=host2,host3</a></li>
+				</ul>
+			</ul>
+			<br />
+			<ul>
+				<li>Invoking latest WebSEAL from specified hosts</li>
+				<ul>
+					<li><a href="https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/getInfraLogs?env=Test&logs=req&filter=latest&host=https://dal9-dev-cwsicio3-02a.sec.ibm.com,https://dal9-dev-cwsicio3-03a.sec.ibm.com">https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/getInfraLogs?env=Test&logs=req&filter=latest&host=https://dal9-dev-cwsicio3-02a.sec.ibm.com,https://dal9-dev-cwsicio3-03a.sec.ibm.com</a></li>
+				</ul>
+			</ul>
+			<br />
+			<ul>
+				<li>Invoking WebSEAL and ISAM Application Log with date range from all hosts</li>
+				<ul>
+	  				<li><a href="https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/getInfraLogs?env=Test&logs=req,mes&timeframe=20170210-20170214">https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/getInfraLogs?env=Test&logs=req,mes&timeframe=20170210-20170214</a></li>
+	  			</ul>
+			</ul>
+			<br />
+			<ul>
+				<li>Invoking WebSEAL and ISAM Application Log with date range from specified hosts</li>
+				<ul>
+	  				<li><a href="https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/getInfraLogs?env=Test&logs=req,mes&timeframe=20170210-20170214&host=https://dal9-dev-cwsicio3-02a.sec.ibm.com,https://dal9-dev-cwsicio3-03a.sec.ibm.com">https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/getInfraLogs?env=Test&logs=req,mes&timeframe=20170210-20170214&host=https://dal9-dev-cwsicio3-02a.sec.ibm.com,https://dal9-dev-cwsicio3-03a.sec.ibm.com</a></li>
+	  			</ul>
+			</ul>
+			<br />
+			<ul>
+				<li>Invoking WebSEAL and ISAM Application Log with search inquery within date range from all hosts</li>
+				<ul>
+	  				<li><a href="https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/getInfraLogs?env=Test&logs=req,mes&timeframe=20170210-20170214&search%3D%22this+is+a+test%22%0D%0A">https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/getInfraLogs?env=Test&logs=req,mes&timeframe=20170210-20170214&search="this is a test"</a></li>
+	  			</ul>
+			</ul>
+			<br />
+			<ul>
+				<li>Retreiving downloaded logs in ZIP format</li>
+				<ul>
+	  				<li><a href="https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/getInfraLogs?env=Test&key=1uxrIYCpV6KRDRgGrUTseHr">https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/getInfraLogs?env=Test&key=1uxrIYCpV6KRDRgGrUTseHr</a></li>
+	  			</ul>
+			</ul>
+		</li>
+	</ul>
+	The following are REST API for other usages related to w3id:
+	<ul>
+		<li><a href=deletetokens>Delete OIDC Tokens</a> - this REST API initiates the request to remove all OIDC tokens for specified user(s)<br /><br />
+		</li>
+	</ul>
+	<ul>
+		<li><a href=lookupdevicefp>Lookup Device Fingerprints</a> - this REST API looks up device fingerprints for one or more users
+			<p>The REST API URI is https://&lt;this host:port&gt;/w3id-svc/lookupDeviceFP?env=&lt;Test|Staging|Prod&gt;&amp;userid=&lt;userid1@ibm.com[,userid2@ibm.com]&gt;</p>
+			<p>For example <a href="https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/lookupDeviceFP?env=test&userid=test1@us.ibm.com">https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/lookupDeviceFP?env=test&userid=test1@us.ibm.com</a></p>
+			<p>Required parameters:<br>
+			<ul>
+			  <li>'env' values can be 'dev' or 'staging' or 'prod'</li>
+			  <li>'userid' values must be at least one IBM user ID (i.e., Email address); if supplying more than one, they must be comma-separated</li>
+			</ul>
+			</p>
+			<p>Optional parameters:</p>
+			<ul>
+			  <li>'zipit' values can be 'true' or 'false' (false is implied by default)</li>
+			</ul>
+		</li>
+		<p>Examples of Device Fingerprint Lookup</p>
+		<ul>
+			<li>Look up a single user's device fingerprints from specified environment</li>
+			<ul>
+	  			<li><a href="https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/lookupDeviceFP?env=test&userid=test1@us.ibm.com">https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/lookupDeviceFP?env=test&userid=test1@us.ibm.com</a></li>
+	  		</ul>
+			<li>Look up mulitple users' device fingerprints from specified environment, and have the results zipped up</li>
+			<ul>
+	  			<li><a href="https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/lookupDeviceFP?env=test&userid=test1@us.ibm.com,test2@us.ibm.com&zipit=true">https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/lookupDeviceFP?env=test&userid=test1@us.ibm.com,test2@us.ibm.com&zipit=true</a></li>
+	  		</ul>
+		</ul>
+	<li><a href=decodeF5Cookie>Decode F5 Cookie</a> - this REST API decodes an F5 Cookie
+			<p>The REST API URI is https://&lt;this host:port&gt;/w3id-svc/decodeF5Cookie?cookie=&lt;F5 Encoded Cookie&gt;</p>
+			<p>For example <a href="https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/decodeF5Cookie?cookie=1677687402.36895.0000">https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/decodeF5Cookie?cookie=1677687402.36895.0000</a></p>
+			<p>Required parameters:</p>
+			<ul>
+			  <li>'cookie' value must be valid F5 encoded Cookie</li>
+			</ul>
+	</li>
+	<li><a href=getPartnerBoardingInfo>Get w3id Partner Jobs Boarding Info</a> - this REST API gets the last w3id partner job boarding information 
+			<p>The REST API URI is https://&lt;this host:port&gt;/w3id-svc/getPartnerBoardingInfo?env=&lt;Test|Staging|Prod&gt;</p>
+			<p>For example <a href="https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/getPartnerBoardingInfo?env=prod">https://dal9-ppd-cfmicio2-01.sec.ibm.com:19443/w3id-svc/getPartnerBoardingInfo?env=prod</a></p>
+			<p>Required parameters:</p>
+			<ul>
+				  <li>'env' values can be 'dev' or 'staging' or 'prod'</li>
+			</ul>
+ 		</li>
+	</ul>
+</body>
+</html>
