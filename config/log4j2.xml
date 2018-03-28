@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+    <Configuration status="debug" strict="true" name="w3idFssoSvc">
+      <Filter type="ThresholdFilter" level="trace"/>     
+      <Appenders>
+        <Appender type="Console" name="STDOUT">
+          <Layout type="PatternLayout" pattern="%m MDC%X%n"/>
+          <Filters>
+            <Filter type="MarkerFilter" marker="FLOW" onMatch="DENY" onMismatch="NEUTRAL"/>
+            <Filter type="MarkerFilter" marker="EXCEPTION" onMatch="DENY" onMismatch="ACCEPT"/>
+          </Filters>
+        </Appender>
+        <Appender type="Console" name="FLOW">
+          <Layout type="PatternLayout" pattern="%C{1}.%M %m %ex%n"/><!-- class and line number -->
+          <Filters>
+            <Filter type="MarkerFilter" marker="FLOW" onMatch="ACCEPT" onMismatch="NEUTRAL"/>
+            <Filter type="MarkerFilter" marker="EXCEPTION" onMatch="ACCEPT" onMismatch="DENY"/>
+          </Filters>
+        </Appender>
+        <Appender type="List" name="List">
+        </Appender>
+        <!-- ATTENTION: BEFORE DEPLOYING TO W3ID, UNCOMMMENT NEXT LINE, AND COMMENT OUT LINE AFTER NEXT -->
+<<<<<<< HEAD
+<<<<<<< HEAD
+       	<!-- <RollingFile name="RollingFile" fileName="/tmp/logs/w3id-svc.log"
+              					filePattern="/tmp/logs/archive/$${date:yyyy-MM}/w3id-svc-$${date:yyyyMMdd}.%i.log.gz"> -->
+        	<RollingFile name="RollingFile" fileName="/home/wasadmin/ICIO_FIM_Util/logs/w3id-svc.log"
+              					filePattern="/home/wasadmin/ICIO_FIM_Util/logs/archive/$${date:yyyy-MM}/w3id-svc-$${date:yyyyMMdd}.%i.log.gz">
+=======
+<!--        	  <RollingFile name="RollingFile" fileName="/tmp/logs/w3id-svc.log"
+=======
+       	  	<!-- <RollingFile name="RollingFile" fileName="/tmp/logs/w3id-svc.log"
+>>>>>>> logs-download
+              					filePattern="/tmp/logs/archive/$${date:yyyy-MM}/w3id-svc-$${date:yyyyMMdd}.%i.log.gz"> -->
+         	<RollingFile name="RollingFile" fileName="/fm_shared/logs/w3id/w3id-svc.log"
+              					filePattern="/fm_shared/logs/w3id/archive/$${date:yyyy-MM}/w3id-svc-$${date:yyyyMMdd}.%i.log.gz">
+<<<<<<< HEAD
+>>>>>>> logs-download
+=======
+         	<!-- <RollingFile name="RollingFile" fileName="/fm_shared/logs/w3id/w3id-svc-prod-sim.log"
+              					filePattern="/fm_shared/logs/w3id/archive/$${date:yyyy-MM}/w3id-svc-prod-sim-$${date:yyyyMMdd}.%i.log.gz"> -->
+>>>>>>> logs-download
+            <PatternLayout>
+              <pattern>%d %p %C{1.} [%t] %m%n</pattern>
+            </PatternLayout>
+		  <SizeBasedTriggeringPolicy size="20 MB" />
+       	</RollingFile>
+      </Appenders>
+     
+      <Loggers>
+<!--         <Logger name="com.ibm.security.util.Logger" level="debug" additivity="true">
+          <Filter type="ThreadContextMapFilter">
+            <KeyValuePair key="test" value="123"/>
+          </Filter>
+          <AppenderRef ref="STDOUT"/>
+        </Logger>
+ -->
+     
+        <Logger name="com.ibm.security.util.Logger" level="warn" additivity="true">
+        	<AppenderRef ref="RollingFile"/>
+        </Logger>
+
+     
+<!--         <Root level="trace">
+          <AppenderRef ref="List"/>
+        </Root>
+ -->     
+ 	 </Loggers>
+     
+</Configuration>
